@@ -14,11 +14,12 @@ topic-name/
 
 ## Topics
 
-<!-- New topics will be listed here as they are added. -->
+Python:
+ - [Project setup: poetry, uv and wheel](https://github.com/th3m0nk/field-notes/blob/main/python/python-project-setup-poetry-uv-wheel_en.md) ([Italian version](https://github.com/th3m0nk/field-notes/blob/main/python/python-project-setup-poetry-uv-wheel_it.md))
 
 ## Language
 
-Every article is provided in two languages:
+Articles can be provided in two languages:
 
 - 🇬🇧 English (`_en.md`)
 - 🇮🇹 Italian (`_it.md`)
