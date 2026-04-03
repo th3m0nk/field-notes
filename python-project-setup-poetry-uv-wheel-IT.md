@@ -1,41 +1,24 @@
-# Gestione dei progetti Python moderni: Poetry, uv e le wheel
+# Poetry, uv e wheel: cosa serve sapere per gestire un progetto Python
 
-Negli ultimi anni l’ecosistema Python ha fatto un grande passo avanti nella gestione delle dipendenze, degli ambienti virtuali e del packaging. Strumenti come **Poetry** e **uv** nascono per risolvere problemi storici di riproducibilità, performance e complessità; mentre il formato **wheel** è centrale per un’installazione affidabile e veloce dei pacchetti. 
+La gestione delle dipendenze in Python è stata un problema aperto per anni. Il workflow classico — `venv` + `pip` + `requirements.txt` — funziona, ma non scala: non gestisce conflitti tra versioni, non garantisce riproducibilità tra macchine diverse, e lascia al developer il compito di tenere allineato manualmente l'ambiente con ciò che è dichiarato nel file di requisiti.
 
-> **Nota**: per ogni concetto citato in questo articolo trovi i riferimenti alle **fonti ufficiali** (documentazione e repository GitHub) nelle sezioni dedicate e nella sezione finale “Riferimenti ufficiali”.
-
----
-
-## 1) `pyproject.toml`: il punto di partenza
-
-Sia Poetry che uv ruotano attorno a **`pyproject.toml`**, il file di configurazione standard per definire metadati di progetto, dipendenze e build backend.
-
-In pratica, `pyproject.toml` può contenere:
-
-- metadati del progetto (nome, versione, descrizione)
-- dipendenze e relativi vincoli
-- configurazione del sistema di build
-- configurazioni dei tool (formatter, linter, test, ecc.)
+Poetry e uv esistono per risolvere questo problema. Le wheel sono il formato di distribuzione che rende l'installazione dei pacchetti veloce e prevedibile. Questo articolo spiega come funzionano e quando usare l'uno o l'altro.
 
 ---
 
-## 2) Cos’è Poetry
+## `pyproject.toml`: il file di configurazione centrale
 
-**Poetry** è un **tool per dependency management e packaging**. Consente di dichiarare le dipendenze del progetto, installarle/aggiornarle in modo deterministico grazie a un lockfile, e costruire artefatti di distribuzione (sdist e wheel). 
+Tutto ruota attorno a **`pyproject.toml`**, lo standard definito da [PEP 621](https://peps.python.org/pep-0621/) per i metadati dei progetti Python. Contiene: nome del progetto, versione, dipendenze, e configurazione degli strumenti (formatter, linter, test runner).
 
-### Funzionalità principali
+Sia Poetry che uv leggono e scrivono questo file. Chi arriva da `requirements.txt` deve abituarsi a un cambio di paradigma: le dipendenze non sono più una lista piatta, ma una dichiarazione strutturata con vincoli di versione che il tool risolve automaticamente.
 
-- **Gestione dipendenze**: aggiunta/rimozione/aggiornamento con risoluzione dei vincoli.
-- **Lockfile**: genera **`poetry.lock`** per installazioni riproducibili.
-- **Ambienti isolati**: può creare/gestire virtualenv per progetto.
-- **Packaging**: costruzione di **sdist** e **wheel** e supporto al publish.
+---
 
-### File chiave
+## Poetry
 
-- `pyproject.toml`: sorgente di verità (metadati e dipendenze) nel formato gestito da Poetry.
-- `poetry.lock`: snapshot delle versioni risolte e installate.
+Poetry gestisce dipendenze, ambienti virtuali e packaging in un unico tool. Ogni progetto ottiene un ambiente isolato e un file **`poetry.lock`** che fissa le versioni esatte di ogni pacchetto. Condividendo il lockfile, chiunque ricostruisce lo stesso identico ambiente.
 
-### Esempio minimo
+Un `pyproject.toml` gestito da Poetry:
 
 ```toml
 [tool.poetry]
@@ -52,34 +35,19 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 ```
 
-### Risorse ufficiali Poetry
+Il vantaggio principale di Poetry è il ciclo completo: risoluzione dipendenze → ambiente virtuale → build degli artefatti (sdist e wheel) → pubblicazione su PyPI. Per chi sviluppa **librerie** da distribuire, avere tutto integrato riduce la quantità di configurazione e i punti di rottura.
 
-- Documentazione: https://python-poetry.org/docs/
-- Sito ufficiale: https://python-poetry.org/
-- GitHub (repository principale): https://github.com/python-poetry/poetry
-- Pagina PyPI: https://pypi.org/project/poetry/
+I limiti: il resolver è più lento rispetto a uv, la CLI ha più concetti da imparare, e la gestione degli ambienti virtuali può creare confusione su dove risiedono fisicamente (di default fuori dalla directory del progetto, modificabile con `virtualenvs.in-project = true`).
+
+**Docs:** [python-poetry.org/docs](https://python-poetry.org/docs/) · [GitHub](https://github.com/python-poetry/poetry)
 
 ---
 
-## 3) Cos’è uv
+## uv
 
-**uv** è un **package e project manager estremamente veloce**, scritto in **Rust**, focalizzato su:
+uv è un tool di Astral (gli stessi di Ruff), scritto in Rust. Fa risoluzione delle dipendenze e gestione degli ambienti come Poetry, ma con tempi di installazione drasticamente inferiori — nell'ordine delle decine di volte più veloce su progetti con molte dipendenze.
 
-- risoluzione dipendenze
-- installazione pacchetti
-- gestione ambienti virtuali
-- lockfile universale
-
-È progettato per essere molto rapido e per offrire una CLI moderna e pragmatica.
-
-### Cosa fa uv (in pratica)
-
-- crea virtualenv
-- aggiunge e sincronizza dipendenze
-- genera lockfile
-- offre anche una modalità “pip-compatibile” (utile per migrazioni o abitudini consolidate)
-
-Esempio tipico:
+Flusso di lavoro tipico:
 
 ```bash
 uv init example
@@ -90,140 +58,83 @@ uv sync
 uv run ruff check
 ```
 
-### Risorse ufficiali uv
+Genera un lockfile (`uv.lock`) e offre una modalità compatibile con pip (`uv pip install`), che facilita la migrazione da workflow esistenti.
 
-- Documentazione: https://docs.astral.sh/uv/
-- Installazione: https://docs.astral.sh/uv/getting-started/installation/
-- GitHub (repository principale): https://github.com/astral-sh/uv
-- GitHub Action ufficiale: https://github.com/astral-sh/setup-uv
-- Guida GitHub Actions: https://docs.astral.sh/uv/guides/integration/github/
+Dove uv è più debole: non ha un supporto integrato per build e publish di pacchetti. Se devi pubblicare una libreria su PyPI, serve un tool esterno (ad esempio `build` + `twine`, oppure `flit`). Per applicazioni, servizi, script e pipeline CI/CD questo non è un problema — e la velocità di uv diventa un vantaggio concreto.
+
+**Docs:** [docs.astral.sh/uv](https://docs.astral.sh/uv/) · [GitHub](https://github.com/astral-sh/uv)
 
 ---
 
-## 4) Cos’è una wheel
+## Wheel: il formato di distribuzione
 
-Una **wheel** è un formato di distribuzione binaria per Python (`.whl`), definito dallo standard Wheel (PEP 427). Una wheel è un archivio ZIP con naming convenzionale, pensato per essere **installato direttamente** senza dover compilare o eseguire logica di build durante l’installazione.
+Quando un package manager installa un pacchetto, lo ottiene in una di due forme:
 
-### Perché le wheel sono importanti
+- **sdist (source distribution)**: codice sorgente da compilare al momento dell'installazione. Richiede compilatori e, per pacchetti con estensioni C/Rust, le relative toolchain.
+- **wheel (`.whl`)**: archivio precompilato, pronto per essere estratto. Nessuna compilazione, risultato deterministico.
 
-- **Installazioni più veloci**: l’installer copia i file in posizione, evitando build ripetute.
-- **Meno errori in CI e su macchine “minimali”**: spesso non serve un compilatore.
-- **Maggiore riproducibilità**: stesso artefatto, stesso risultato (a parità di compatibilità).
-
-### Come leggere il nome di una wheel
-
-Esempio:
+Il nome di una wheel codifica la compatibilità:
 
 ```text
 numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.whl
 ```
 
-La convenzione include:
-- nome e versione
-- tag Python (es. `cp311`)
-- tag ABI
-- tag piattaforma (es. `manylinux`, `win_amd64`, ecc.)
+Questo significa: numpy 1.26.4, CPython 3.11, Linux x86_64. Se la piattaforma corrisponde, l'installazione è una copia di file. Se non esiste una wheel compatibile, il package manager cade sulla sdist — e lì le cose possono rompersi (compilatori mancanti, header di sistema assenti, errori criptici).
 
-### Wheel “universali”
+I pacchetti pure Python usano wheel universali:
 
 ```text
 requests-2.32.0-py3-none-any.whl
 ```
 
-Indica pacchetto “pure Python” installabile su qualsiasi OS per Python 3.
+`py3-none-any`: qualsiasi implementazione Python 3, nessun requisito ABI, qualsiasi piattaforma.
 
-### Risorse ufficiali wheel
+Sia Poetry che uv preferiscono le wheel quando disponibili. Non è qualcosa su cui intervenire manualmente — ma è utile sapere che, quando un'installazione fallisce con errori di compilazione, il motivo è quasi sempre l'assenza di una wheel per la propria piattaforma.
 
-- Specifica storica: PEP 427 (Wheel Binary Package Format): https://peps.python.org/pep-0427/
-- Tool di riferimento “wheel”: docs: https://wheel.readthedocs.io/en/stable/
-- Pagina PyPI del pacchetto `wheel`: https://pypi.org/project/wheel/
-- Documentazione pip (`pip wheel`): https://pip.pypa.io/en/stable/cli/pip_wheel.html
+**Spec:** [PEP 427](https://peps.python.org/pep-0427/) · [Docs](https://wheel.readthedocs.io/en/stable/)
 
 ---
 
-## 5) Come Poetry e uv usano le wheel
+## Quale scegliere
 
-Sia Poetry che uv, quando installano dipendenze:
+La scelta dipende da cosa si sta costruendo.
 
-- **preferiscono una wheel compatibile**, se disponibile
-- usano la source distribution solo se non esistono wheel adatte
+**Libreria da pubblicare su PyPI** → Poetry. Il ciclo build-publish integrato evita di assemblare una toolchain a mano.
 
-Questo vale in particolare per pacchetti con estensioni native (es. numpy/pandas), dove la disponibilità di wheel evita compilazioni e riduce drasticamente i problemi in ambienti CI/CD.
+**Applicazione, servizio, script, pipeline CI/CD** → uv. Più veloce, meno cerimonia, migrazione graduale da pip possibile.
 
----
-
-## 6) Confronto diretto: Poetry vs uv
-
-### Filosofia
-
-| Aspetto | Poetry | uv |
+| | Poetry | uv |
 |---|---|---|
-| Approccio | “Project manager” completo (dependency + packaging + publish) | Tool veloce e modulare per dipendenze/ambienti |
-| Packaging & publish | Integrati | Supportati, ma spesso in pipeline con tool dedicati |
-| “Opinionated” | Sì (workflow e convenzioni) | Meno (più aderente a standard e componibile) |
+| Build e publish integrati | Sì | No |
+| Velocità del resolver | Adeguata | Molto alta |
+| Curva di apprendimento | Più concetti da assimilare | Più immediato |
+| Lockfile | `poetry.lock` | `uv.lock` |
+| Compatibilità pip | No | Sì (`uv pip`) |
 
-### Performance
-
-In generale uv punta a essere molto più veloce nell’installazione e nella risoluzione rispetto agli approcci tradizionali.
-
-### Lockfile
-
-- Poetry: `poetry.lock`
-- uv: `uv.lock`
-
-Entrambi abilitano installazioni riproducibili.
+Una nota sulla migrazione: entrambi i tool usano `pyproject.toml`, quindi passare dall'uno all'altro non richiede riscrivere il progetto. Il lockfile va rigenerato, ma le dipendenze dichiarate restano le stesse.
 
 ---
 
-## 7) Quando scegliere Poetry
+## Problemi frequenti per chi inizia
 
-Scegli **Poetry** se:
-
-- stai costruendo una **libreria** da distribuire
-- vuoi un tool unico “end-to-end” (dipendenze + build + publish)
-- preferisci un workflow guidato e coerente
-
----
-
-## 8) Quando scegliere uv
-
-Scegli **uv** se:
-
-- sviluppi **applicazioni**, ETL, microservizi, tool interni
-- dai priorità a velocità in **CI/CD** e ambienti puliti
-- vuoi un tool “drop-in” (anche pip-compatibile) e componibile
+- **"Python non trovato" dopo l'installazione.** Su Windows, il Python installato dal Microsoft Store e quello installato da python.org hanno path diversi. Verificare con `python --version` quale risponde, e che sia quello atteso.
+- **Conflitti tra ambienti virtuali.** Se si è usato `pip install` globalmente prima di adottare Poetry o uv, i pacchetti globali possono interferire. Lavorare sempre in un ambiente virtuale isolato.
+- **Errori di compilazione all'installazione.** Significa che non esiste una wheel per il pacchetto su quella piattaforma. Le opzioni sono: cercare una versione del pacchetto che abbia wheel disponibili, oppure installare i compilatori necessari (Visual C++ Build Tools su Windows, `build-essential` su Debian/Ubuntu).
+- **Lockfile non committato nel repository.** Il lockfile (`poetry.lock` o `uv.lock`) va versionato. Senza di esso, ogni `install` può produrre un ambiente diverso.
 
 ---
 
-## 9) Conclusione
-
-- **Poetry**: project manager completo per dipendenze e packaging.
-- **uv**: tool modernissimo e velocissimo per dipendenze, ambienti e lockfile.
-- **Wheel**: formato fondamentale che abilita installazioni rapide e affidabili.
-
-Molti team adottano oggi un approccio ibrido:
-
-> **uv per dipendenze/ambienti + tool specifici per build/publish**, quando serve.
-
----
-
-## Riferimenti ufficiali (link rapidi)
+## Riferimenti
 
 ### Poetry
-- Sito: https://python-poetry.org/
 - Docs: https://python-poetry.org/docs/
 - GitHub: https://github.com/python-poetry/poetry
-- PyPI: https://pypi.org/project/poetry/
 
-### uv (Astral)
+### uv
 - Docs: https://docs.astral.sh/uv/
 - Installazione: https://docs.astral.sh/uv/getting-started/installation/
 - GitHub: https://github.com/astral-sh/uv
-- setup-uv (GitHub Action): https://github.com/astral-sh/setup-uv
-- Guida GitHub Actions: https://docs.astral.sh/uv/guides/integration/github/
 
 ### Wheel
 - PEP 427: https://peps.python.org/pep-0427/
-- Docs `wheel`: https://wheel.readthedocs.io/en/stable/
-- PyPI `wheel`: https://pypi.org/project/wheel/
-- pip `wheel`: https://pip.pypa.io/en/stable/cli/pip_wheel.html
+- Docs: https://wheel.readthedocs.io/en/stable/
